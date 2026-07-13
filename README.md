@@ -64,9 +64,10 @@ ativar/desativar, definir desconto e definir data e hora de validade (início e 
 No Bitrix: **Aplicativos → Desenvolvedor → Outros → Aplicativo local**
 (a mesma tela do print). Preencha:
 
-- **Tipo:** `Estático` (a página é carregada direto, sem servidor de OAuth).
-  *Se por algum motivo a página não abrir, tente `Servidor`.*
-- **Seu caminho do manipulador:** `https://SEU-APP.vercel.app/`
+- **Tipo:** `Servidor`
+- **Seu caminho do manipulador:** `https://SEU-APP.vercel.app/api/app`
+  (aponta para a rota `/api/app`, que funciona no modo Servidor — o modo Servidor
+  envia a página por POST, e essa rota responde tanto a GET quanto a POST.)
 - **Caminho de instalação inicial:** deixe em branco.
 - **Apenas script (sem interface):** deixe **desmarcado**.
 - **Suporta BitrixMobile:** opcional.
@@ -128,6 +129,8 @@ O campo enviado ao Bitrix (`cupomAplicadoFinal`) não muda.
 - **O site diz sempre "inválido":** confira a `API_BASE` no site e o `ALLOWED_ORIGIN`
   (bloqueio de CORS). Teste `https://SEU-APP.vercel.app/api/validate?code=XPTO`
   direto no navegador.
-- **A página não abre dentro do Bitrix:** troque o tipo de `Estático` para `Servidor`.
+- **A página abre no link direto mas fica em branco dentro do Bitrix:** confirme
+  que o caminho do manipulador termina em **`/api/app`** (e não só `/`). No modo
+  Servidor o Bitrix envia por POST; a rota `/api/app` é quem responde a isso.
 - **"unauthorized" no painel:** senha diferente da `ADMIN_PASSWORD` configurada no Vercel.
 - **Alterei uma variável no Vercel:** é preciso **Redeploy** para valer.
