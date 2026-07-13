@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gerenciador de Cupons</title>
+<!-- SDK do Bitrix24 (só faz efeito quando aberto dentro do Bitrix) -->
+<script src="https://api.bitrix24.com/api/v1/"></script>
+<style>
+  :root {
+    --navy: #12193d;
+    --navy-soft: #1e2a5e;
+    --green: #28a745;
+    --red: #dc3545;
+    --amber: #d98a00;
+    --gray: #6c757d;
+    --bg: #f4f6fb;
+    --line: #e3e7f0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: #1c2333;
+    font-size: 14px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  header.top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  header.top h1 { font-size: 20px; margin: 0; color: var(--navy); }
+  header.top .sub { color: var(--gray); font-size: 12px; margin-top: 2px; }
+
+  .btn {
+    border: 0; border-radius: 8px; padding: 9px 16px; font-size: 13px;
+    font-weight: 600; cursor: pointer; background: var(--navy); color: #fff;
+    transition: opacity .15s;
+  }
+  .btn:hover { opacity: .9; }
+  .btn.ghost { background: #fff; color: var(--navy); border: 1px solid var(--line); }
+  .btn.danger { background: var(--red); }
+  .btn.sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  .card {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px; margin-bottom: 18px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 14px; color: var(--navy); }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .grid .full { grid-column: 1 / -1; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+
+  label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #40485c; }
+  input[type="text"], input[type="number"], input[type="datetime-local"] {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--line);
+    border-radius: 8px; font-size: 14px; background: #fff;
+  }
+  input:focus { outline: none; border-color: var(--navy-soft); }
+  .check { display: flex; align-items: center; gap: 8px; }
+  .check input { width: 16px; height: 16px; }
+  .check label { margin: 0; }
+  .hint { font-size: 11px; color: var(--gray); margin-top: 4px; }
+
+  .toolbar { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  .toolbar input { max-width: 260px; }
+  .toolbar .spacer { flex: 1; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  th { color: var(--gray); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  td .code { font-weight: 700; color: var(--navy); }
+  td .note { color: var(--gray); font-size: 12px; }
+
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .badge.ativo { background: #e6f5ec; color: var(--green); }
+  .badge.expirado { background: #fdeaec; color: var(--red); }
+  .badge.agendado { background: #eef1fb; color: var(--navy-soft); }
+  .badge.off { background: #eef0f4; color: var(--gray); }
+
+  .row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+  .msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; display: none; }
+  .msg.ok { background: #e6f5ec; color: #1c7c37; }
+  .msg.err { background: #fdeaec; color: #a71d2a; }
+
+  /* Tela de login */
+  #gate { max-width: 380px; margin: 12vh auto 0; }
+  #gate .card { text-align: center; }
+  #gate h1 { color: var(--navy); font-size: 20px; }
+  #gate input { text-align: center; }
+
+  .empty { text-align: center; color: var(--gray); padding: 30px 0; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="gate" class="wrap">
+  <div class="card">
+    <h1>Gerenciador de Cupons</h1>
+    <p class="hint" style="margin-bottom:16px">Digite a senha de acesso do painel.</p>
+    <div style="margin-bottom:12px">
+      <input type="password" id="pwd" placeholder="Senha" onkeydown="if(event.key==='Enter')entrar()" />
+    </div>
+    <button class="btn" style="width:100%" onclick="entrar()">Entrar</button>
+    <div id="gateErr" class="msg err" style="margin-top:14px">Senha incorreta.</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="wrap" style="display:none">
+  <header class="top">
+    <div>
+      <h1>Gerenciador de Cupons</h1>
+      <div class="sub">Ative, agende e defina a validade dos cupons de desconto do site.</div>
+    </div>
+    <button class="btn ghost sm" onclick="sair()">Sair</button>
+  </header>
+
+  <div id="msgOk" class="msg ok"></div>
+  <div id="msgErr" class="msg err"></div>
+
+  <!-- Formulário -->
+  <div class="card">
+    <h2 id="formTitle">Novo cupom</h2>
+    <div class="grid">
+      <div>
+        <label>Código do cupom *</label>
+        <input type="text" id="f_code" placeholder="Ex.: PARCEIRO10" />
+        <div class="hint">Será convertido para MAIÚSCULAS automaticamente.</div>
+      </div>
+      <div>
+        <label>Desconto (%) — opcional</label>
+        <input type="number" id="f_discount" placeholder="Ex.: 10" min="0" />
+      </div>
+      <div>
+        <label>Válido a partir de — opcional</label>
+        <input type="datetime-local" id="f_starts" />
+        <div class="hint">Vazio = vale desde já. Horário de Brasília.</div>
+      </div>
+      <div>
+        <label>Válido até — opcional</label>
+        <input type="datetime-local" id="f_expires" />
+        <div class="hint">Vazio = sem prazo de expiração. Horário de Brasília.</div>
+      </div>
+      <div class="full">
+        <label>Observação — opcional</label>
+        <input type="text" id="f_note" placeholder="Ex.: Campanha influenciador X" />
+      </div>
+      <div class="full check">
+        <input type="checkbox" id="f_active" checked />
+        <label for="f_active">Cupom ativo</label>
+      </div>
+    </div>
+    <div style="margin-top:16px; display:flex; gap:10px;">
+      <button class="btn" id="saveBtn" onclick="salvar()">Salvar cupom</button>
+      <button class="btn ghost" id="cancelBtn" onclick="limparForm()" style="display:none">Cancelar edição</button>
+    </div>
+  </div>
+
+  <!-- Lista -->
+  <div class="card">
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="Buscar cupom..." oninput="render()" />
+      <span class="spacer"></span>
+      <button class="btn ghost sm" onclick="importarAntigos()">Importar lista antiga</button>
+      <button class="btn ghost sm" onclick="carregar()">Atualizar</button>
+    </div>
+    <div id="tableArea"></div>
+  </div>
+</div>
+
+<script>
+  // ---------- Lista de cupons que já existiam no código (para o botão "Importar lista antiga") ----------
+  const CUPONS_ANTIGOS = [
+    'ALGORITMO10','BOLSAS10','DAITANA10','DIEGOPRT10','ELISA10','USA4U10','FHB10','FNB10',
+    'GIU10','JENN10','BLINKY10','KASAUSTIN10','KATYA10','KIKI10','LUCA10','SIQUEIRA10','MANO10',
+    'MELCHINESA10','MILHAS10','NATI10','AEROMOÇO10','AEROMOCO10','OI10','DRONE10','PROFE10',
+    'RDV10','RESSACA10','RPA10','TYP10','TCJ10','TIFOSI10','VG10','WYLL10','ZIA10','LUCA15',
+    'CREFITO2','CREFITO4','ESF10','CVC10','FRAN10','FABI15'
+  ];
+
+  // ---------- Estado ----------
+  let TOKEN = '';
+  let CUPONS = [];
+
+  // ---------- Bitrix (só roda se estiver embutido no Bitrix) ----------
+  if (window.BX24) {
+    try {
+      BX24.init(function () {
+        try { if (BX24.installFinish) BX24.installFinish(); } catch (e) {}
+        try { if (BX24.fitWindow) BX24.fitWindow(); } catch (e) {}
+      });
+    } catch (e) {}
+  }
+
+  // ---------- Login ----------
+  function entrar() {
+    const pwd = document.getElementById('pwd').value;
+    if (!pwd) return;
+    TOKEN = pwd;
+    verificarEEntrar();
+  }
+
+  async function verificarEEntrar() {
+    try {
+      const r = await api('GET');
+      if (r.status === 401) {
+        document.getElementById('gateErr').style.display = 'block';
+        return;
+      }
+      sessionStorage.setItem('cupom_token', TOKEN);
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      const data = await r.json();
+      CUPONS = data.coupons || [];
+      render();
+    } catch (e) {
+      document.getElementById('gateErr').textContent = 'Erro de conexão. Verifique o deploy.';
+      document.getElementById('gateErr').style.display = 'block';
+    }
+  }
+
+  function sair() {
+    sessionStorage.removeItem('cupom_token');
+    location.reload();
+  }
+
+  // ---------- Chamadas à API ----------
+  function api(method, body, query) {
+    let url = '/api/admin/coupons';
+    if (query) url += '?' + query;
+    return fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + TOKEN,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  async function carregar() {
+    const r = await api('GET');
+    const data = await r.json();
+    CUPONS = data.coupons || [];
+    render();
+  }
+
+  // ---------- Datas (horário de Brasília, offset fixo -03:00) ----------
+  // input datetime-local -> ISO com -03:00
+  function localToISO(v) {
+    if (!v) return null;
+    return v.length === 16 ? v + ':00-03:00' : v;
+  }
+  // ISO armazenado -> valor para datetime-local (primeiros 16 caracteres)
+  function isoToLocal(iso) {
+    if (!iso) return '';
+    return iso.slice(0, 16);
+  }
+  // ISO -> "DD/MM/AAAA HH:mm"
+  function fmt(iso) {
+    if (!iso) return '—';
+    const s = iso.slice(0, 16);
+    const [d, t] = s.split('T');
+    if (!d) return '—';
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}/${y} ${t}`;
+  }
+
+  function statusDe(c) {
+    if (c.active === false) return { txt: 'Desativado', cls: 'off' };
+    const now = Date.now();
+    if (c.startsAt && new Date(c.startsAt).getTime() > now)
+      return { txt: 'Agendado', cls: 'agendado' };
+    if (c.expiresAt && new Date(c.expiresAt).getTime() < now)
+      return { txt: 'Expirado', cls: 'expirado' };
+    return { txt: 'Ativo', cls: 'ativo' };
+  }
+
+  // ---------- Mensagens ----------
+  function flash(tipo, texto) {
+    const el = document.getElementById(tipo === 'ok' ? 'msgOk' : 'msgErr');
+    el.textContent = texto;
+    el.style.display = 'block';
+    setTimeout(() => (el.style.display = 'none'), 3500);
+  }
+
+  // ---------- Salvar ----------
+  async function salvar() {
+    const code = document.getElementById('f_code').value.trim().toUpperCase();
+    if (!code) return flash('err', 'Informe o código do cupom.');
+
+    const payload = {
+      code,
+      discount: document.getElementById('f_discount').value,
+      active: document.getElementById('f_active').checked,
+      startsAt: localToISO(document.getElementById('f_starts').value),
+      expiresAt: localToISO(document.getElementById('f_expires').value),
+      note: document.getElementById('f_note').value.trim(),
+    };
+
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+    try {
+      const r = await api('POST', payload);
+      if (!r.ok) throw new Error();
+      flash('ok', `Cupom "${code}" salvo.`);
+      limparForm();
+      await carregar();
+    } catch (e) {
+      flash('err', 'Não foi possível salvar. Tente novamente.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Salvar cupom';
+    }
+  }
+
+  function editar(code) {
+    const c = CUPONS.find((x) => x.code === code);
+    if (!c) return;
+    document.getElementById('formTitle').textContent = 'Editando: ' + c.code;
+    document.getElementById('f_code').value = c.code;
+    document.getElementById('f_discount').value = c.discount ?? '';
+    document.getElementById('f_active').checked = c.active !== false;
+    document.getElementById('f_starts').value = isoToLocal(c.startsAt);
+    document.getElementById('f_expires').value = isoToLocal(c.expiresAt);
+    document.getElementById('f_note').value = c.note || '';
+    document.getElementById('cancelBtn').style.display = 'inline-block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function limparForm() {
+    document.getElementById('formTitle').textContent = 'Novo cupom';
+    document.getElementById('f_code').value = '';
+    document.getElementById('f_discount').value = '';
+    document.getElementById('f_active').checked = true;
+    document.getElementById('f_starts').value = '';
+    document.getElementById('f_expires').value = '';
+    document.getElementById('f_note').value = '';
+    document.getElementById('cancelBtn').style.display = 'none';
+  }
+
+  async function alternarAtivo(code) {
+    const c = CUPONS.find((x) => x.code === code);
+    if (!c) return;
+    await api('POST', { ...c, active: !(c.active !== false) });
+    await carregar();
+  }
+
+  async function remover(code) {
+    if (!confirm(`Remover o cupom "${code}"? Essa ação não pode ser desfeita.`)) return;
+    await api('DELETE', null, 'code=' + encodeURIComponent(code));
+    flash('ok', `Cupom "${code}" removido.`);
+    await carregar();
+  }
+
+  async function importarAntigos() {
+    if (!confirm(`Importar ${CUPONS_ANTIGOS.length} cupons da lista antiga? Os já existentes serão mantidos/atualizados como ativos e sem prazo.`)) return;
+    const bulk = CUPONS_ANTIGOS.map((code) => ({ code, active: true, note: 'Importado da lista antiga' }));
+    const r = await api('POST', { bulk });
+    const data = await r.json();
+    flash('ok', `${data.count || 0} cupons importados.`);
+    await carregar();
+  }
+
+  // ---------- Render ----------
+  function render() {
+    const q = (document.getElementById('search').value || '').trim().toUpperCase();
+    const lista = CUPONS
+      .filter((c) => !q || c.code.includes(q))
+      .sort((a, b) => a.code.localeCompare(b.code));
+
+    const area = document.getElementById('tableArea');
+    if (!lista.length) {
+      area.innerHTML = '<div class="empty">Nenhum cupom cadastrado ainda.</div>';
+      return;
+    }
+
+    let html = `<table><thead><tr>
+      <th>Cupom</th><th>Desc.</th><th>Status</th>
+      <th>Início</th><th>Validade</th><th></th>
+    </tr></thead><tbody>`;
+
+    for (const c of lista) {
+      const st = statusDe(c);
+      html += `<tr>
+        <td><span class="code">${c.code}</span>${c.note ? `<div class="note">${escapeHtml(c.note)}</div>` : ''}</td>
+        <td>${c.discount != null ? c.discount + '%' : '—'}</td>
+        <td><span class="badge ${st.cls}">${st.txt}</span></td>
+        <td>${fmt(c.startsAt)}</td>
+        <td>${fmt(c.expiresAt)}</td>
+        <td><div class="row-actions">
+          <button class="btn ghost sm" onclick="editar('${c.code}')">Editar</button>
+          <button class="btn ghost sm" onclick="alternarAtivo('${c.code}')">${c.active !== false ? 'Desativar' : 'Ativar'}</button>
+          <button class="btn danger sm" onclick="remover('${c.code}')">Excluir</button>
+        </div></td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    area.innerHTML = html;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+
+  // Código sempre em maiúsculas ao digitar
+  document.getElementById('f_code').addEventListener('input', function () {
+    this.value = this.value.toUpperCase();
+  });
+
+  // Auto-login se já tiver token na sessão
+  (function () {
+    const saved = sessionStorage.getItem('cupom_token');
+    if (saved) {
+      TOKEN = saved;
+      verificarEEntrar();
+    }
+  })();
+</script>
+</body>
+</html>
