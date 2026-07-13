@@ -14,9 +14,7 @@ export default async function handler(req, res) {
   try {
     const c = await getOne(code);
     if (c && isCurrentlyValid(c)) {
-      return res
-        .status(200)
-        .json({ valid: true, code: c.code, discount: c.discount ?? null });
+      return res.status(200).json({ valid: true, code: c.code });
     }
     return res.status(200).json({ valid: false });
   } catch (e) {

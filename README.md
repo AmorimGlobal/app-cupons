@@ -48,16 +48,14 @@ ativar/desativar, definir desconto e definir data e hora de validade (início e 
    |------------------------------|--------------------------------------------------|
    | `UPSTASH_REDIS_REST_URL`     | (o URL do Upstash)                               |
    | `UPSTASH_REDIS_REST_TOKEN`   | (o token do Upstash)                             |
-   | `ADMIN_PASSWORD`             | uma senha à sua escolha (a da equipe no painel)  |
    | `ALLOWED_ORIGIN`             | `https://SEU-SITE.com.br` (ou `*` p/ testar)     |
 
 4. Clique em **Deploy**. Ao final você terá uma URL, ex.: `https://gerenciador-cupons.vercel.app`.
-5. Teste abrindo essa URL no navegador — deve aparecer a tela de senha do painel.
-   Entre com a `ADMIN_PASSWORD` e clique em **Importar lista antiga** para trazer os cupons atuais.
+5. Teste abrindo essa URL no navegador — deve aparecer o painel de cupons.
 
 > Se você criou o banco pela aba Storage do Vercel, as variáveis do Upstash
 > já existem (podem ter o prefixo `KV_...`) — o código aceita os dois nomes.
-> Ainda assim, adicione manualmente `ADMIN_PASSWORD` e `ALLOWED_ORIGIN`.
+> Ainda assim, adicione manualmente `ALLOWED_ORIGIN`.
 
 ## Passo 4 — Registrar o app no Bitrix24
 
@@ -75,8 +73,7 @@ No Bitrix: **Aplicativos → Desenvolvedor → Outros → Aplicativo local**
 - **Atribuir permissões:** este app não chama a API do Bitrix, então não exige
   permissões. Pode deixar `CRM (crm)` que já está lá — não atrapalha.
 
-Clique em **Salvar**. O app passa a aparecer no menu; ao abrir, pedirá a senha
-(a `ADMIN_PASSWORD`).
+Clique em **Salvar**. O app passa a aparecer no menu e abre direto no painel.
 
 ## Passo 5 — Atualizar o formulário do site
 
@@ -112,7 +109,6 @@ O campo enviado ao Bitrix (`cupomAplicadoFinal`) não muda.
 |----------------------------|:-----------:|-----------------------------------------------------|
 | `UPSTASH_REDIS_REST_URL`   | sim         | Endereço do banco Redis                             |
 | `UPSTASH_REDIS_REST_TOKEN` | sim         | Token do banco Redis                                |
-| `ADMIN_PASSWORD`           | sim         | Senha de acesso ao painel                           |
 | `ALLOWED_ORIGIN`           | recomendada | Domínio do site autorizado a validar (`*` = todos)  |
 
 ## Endpoints
@@ -120,9 +116,9 @@ O campo enviado ao Bitrix (`cupomAplicadoFinal`) não muda.
 | Método | Rota                              | Uso                              |
 |--------|-----------------------------------|----------------------------------|
 | GET    | `/api/validate?code=CUPOM`        | Público. Valida 1 cupom.         |
-| GET    | `/api/admin/coupons`              | Painel (senha). Lista todos.     |
-| POST   | `/api/admin/coupons`              | Painel (senha). Cria/atualiza.   |
-| DELETE | `/api/admin/coupons?code=CUPOM`   | Painel (senha). Remove.          |
+| GET    | `/api/admin/coupons`              | Painel. Lista todos.            |
+| POST   | `/api/admin/coupons`              | Painel. Cria/atualiza.        |
+| DELETE | `/api/admin/coupons?code=CUPOM`   | Painel. Remove.                      |
 
 ## Problemas comuns
 
@@ -132,5 +128,4 @@ O campo enviado ao Bitrix (`cupomAplicadoFinal`) não muda.
 - **A página abre no link direto mas fica em branco dentro do Bitrix:** confirme
   que o caminho do manipulador termina em **`/api/app`** (e não só `/`). No modo
   Servidor o Bitrix envia por POST; a rota `/api/app` é quem responde a isso.
-- **"unauthorized" no painel:** senha diferente da `ADMIN_PASSWORD` configurada no Vercel.
 - **Alterei uma variável no Vercel:** é preciso **Redeploy** para valer.
